@@ -1,3 +1,7 @@
 /node_modules
 /src/web-mobile
+/build
+*.zip
 /dist
+/logs
+.env

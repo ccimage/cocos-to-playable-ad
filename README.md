@@ -111,6 +111,25 @@
     }
 ```
 
+- AudioPlayerWeb.loadNative 修改成
+```
+  AudioPlayerWeb.loadNative = function loadNative(url) {
+    return new Promise(function (resolve, reject) {
+      var cachedAudioBuffer = audioBufferManager.getCache(url);
+      if (cachedAudioBuffer) {
+        audioBufferManager.retainCache(url);
+        resolve(cachedAudioBuffer);
+        return;
+      }
+      const blob = Total_Assets[url];
+      audioContextAgent.decodeAudioData(blob.buffer).then(function (decodedAudioBuffer) {
+        audioBufferManager.addCache(url, decodedAudioBuffer);
+        resolve(decodedAudioBuffer);
+      });
+    });
+  };
+```
+
 
 
 ## system.bundle.js修改

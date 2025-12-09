@@ -7,7 +7,7 @@ module.exports = {
     // insertPragma: false,
     // jsxBracketSameLine: false, // 多行JSX中的>放置在最后一行的结尾，而不是另起一行（默认false）
     // jsxSingleQuote: true,
-    printWidth: 130, // 每行代码长度（默认80）
+    printWidth: 180, // 每行代码长度（默认80）
     // proseWrap: "preserve",
     // requirePragma: false,
     semi: true, // 声明结尾使用分号(默认true)

@@ -873,7 +873,7 @@
   };
 
   systemJSPrototype$1.resolve = function (id, parentUrl) {
-    if (id == "cc") return "cc";
+    // if (id == "cc") return "cc";
     parentUrl = parentUrl || !true  || baseUrl;
     const curUrl = resolveIfNotPlainOrUrl(id, parentUrl) || id;
     return resolveImportMap((importMap), curUrl, parentUrl) || throwUnresolved(id, parentUrl);

@@ -64,7 +64,8 @@ class SingleBundleHtml {
             const filePath = cssLinks[i].attribs["href"];
             const cssText = await this.readTextFile(`${G_Root_Path}${filePath}`);
             $(cssLinks[i]).remove();
-            $("head").append(`<style>${new CleanCSS({}).minify(cssText).styles}</style>`);
+            const styleText = new CleanCSS({}).minify(cssText).styles;
+            this.appendElement($, "head", "style", styleText, filePath)
         }
     }
     private async processScript($: cheerio.CheerioAPI) {
@@ -72,22 +73,28 @@ class SingleBundleHtml {
         for (let i = 0; i < list.length; i++) {
             $(list[i]).remove();
         }
-        const jsPolyFills = await this.readTextFile(`bundle/polyfills.bundle.js`);
-        $("head").append(`<script>${jsPolyFills}</script>`);
-        const systemJs = await this.readTextFile(`bundle/system.bundle.js`);
-        $("head").append(`<script>${systemJs}</script>`);
-
-        const jsZip = await this.readTextFile(`bundle/fflate.min.js`);
-        $("head").append(`<script>${jsZip}</script>`);
-
-        const base64js = await this.readTextFile(`bundle/base64.min.js`);
-        $("head").append(`<script>${base64js}</script>`);
+        let jsLink = "bundle/polyfills.bundle.js";
+        const jsPolyFills = await this.readTextFile(jsLink);
+        this.appendElement($, "head", "script", jsPolyFills, jsLink)
+        jsLink = `bundle/system.bundle.js`;
+        const systemJs = await this.readTextFile(jsLink);
+        let scriptText = uglify.minify(systemJs, {mangle: false, module: true}).code;
+        this.appendElement($, "head", "script", scriptText, jsLink)
+        jsLink = `bundle/fflate.min.js`;
+        const jsZip = await this.readTextFile(jsLink);
+        this.appendElement($, "head", "script", jsZip, jsLink)
+        jsLink = `bundle/base64.min.js`;
+        const base64js = await this.readTextFile(jsLink);
+        this.appendElement($, "head", "script", base64js, jsLink)
     }
     private async addZipScript($: cheerio.CheerioAPI) {
-        const scriptText = await this.readTextFile(`bundle/cc.js`);
-        const zipCC = fflate.zipSync({ "cc.js": fflate.strToU8(scriptText) });
+        let jsLink = "bundle/cc.js";
+        let scriptText = await this.readTextFile(jsLink);
+        const miniCode = uglify.minify(scriptText, {mangle: false, module: true}).code;
+        const zipCC = fflate.zipSync({ "cc.js": fflate.strToU8(miniCode) });
         const base64String = base64js.fromByteArray(zipCC);
-        $("head").append(`<script>var Global_CC_File = "${base64String}";</script>`);
+        scriptText = `var Global_CC_File = "${base64String}";`;
+        this.appendElement($, "head", "script", scriptText, jsLink)
     }
     private async addZipAssets($: cheerio.CheerioAPI) {
         const filePathFull = `assets.zip`;
@@ -96,7 +103,7 @@ class SingleBundleHtml {
             shell.exec(`"${G_7z_exe}" a -tzip assets.zip assets`);
             const blobAssets = fs.readFileSync("assets.zip");
             const base64String = base64js.fromByteArray(blobAssets);
-            $("head").append(`<script>var assets_file="${base64String}";</script>`);
+            this.appendElement($, "head", "script", `var assets_file="${base64String}";`, "assets.zip")
         });
     }
     private async addZipSource($: cheerio.CheerioAPI) {
@@ -107,29 +114,35 @@ class SingleBundleHtml {
             shell.exec(`"${G_7z_exe}" a -tzip -x@filelist.txt src.zip src`);
             const blobSrc = fs.readFileSync("src.zip");
             const base64String = base64js.fromByteArray(blobSrc);
-            $("head").append(`<script>var src_file="${base64String}";</script>`);
+            this.appendElement($, "head", "script", `var src_file="${base64String}";`, "src.zip")
         });
     }
     private async addScriptMain($: cheerio.CheerioAPI) {
-        const scriptText = await this.readTextFile(`bundle/main.js`);
-        $("head").append(`<script>${scriptText}</script>`);
+        const jsLink = `bundle/main.js`;
+        const scriptText = await this.readTextFile(jsLink);
+        this.appendElement($, "head", "script", scriptText, jsLink)
     }
     private async addAppScript($: cheerio.CheerioAPI) {
-        const scriptApp = await this.readTextFile(`${G_Root_Path}application.js`);
+        const jsLink = "application.js";
+        const scriptApp = await this.readTextFile(`${G_Root_Path}${jsLink}`);
         const zipCC = fflate.zipSync({ "application.js": fflate.strToU8(scriptApp) });
         const base64String = base64js.fromByteArray(zipCC);
-        $("body").append(`<script>var Global_APP_File = "${base64String}";</script>`);
+        const scriptText = `var Global_APP_File = "${base64String}";`;
+        this.appendElement($, "body", "script", scriptText, jsLink)
     }
     private async addIndexScript($: cheerio.CheerioAPI) {
-        let scriptApp = await this.readTextFile(`${G_Root_Path}index.js`);
+        const jsLink = "index.js";
+        let scriptApp = await this.readTextFile(`${G_Root_Path}${jsLink}`);
         scriptApp = scriptApp.replace(`function topLevelImport(url) {\n    return System["import"](url);\n  }`, "");
         const zipCC = fflate.zipSync({ "index.js": fflate.strToU8(scriptApp) });
         const base64String = base64js.fromByteArray(zipCC);
-        $("body").append(`<script>var Global_Index_File = "${base64String}";</script>`);
+        const scriptText = `var Global_Index_File = "${base64String}";`;
+        this.appendElement($, "body", "script", scriptText, jsLink)
     }
     private async addScriptStart($: cheerio.CheerioAPI) {
-        const scriptText = await this.readTextFile(`bundle/start.js`);
-        $("body").append(`<script async>${scriptText}</script>`);
+        const jsLink = `bundle/start.js`;
+        const scriptText = await this.readTextFile(jsLink);
+        this.appendElement($, "body", "script", scriptText, jsLink)
     }
     /**
      * 读取HTMl文件
@@ -156,6 +169,10 @@ class SingleBundleHtml {
                 resolve(data.toString());
             });
         });
+    }
+
+    private appendElement($: cheerio.CheerioAPI, toElement: string, elementType: string, content: string, originFileName: string) {
+        $(toElement).append(`<!-- ${originFileName} -->\n<${elementType}>${content}</${elementType}>\n`);
     }
 }
 
